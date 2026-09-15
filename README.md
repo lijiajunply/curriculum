@@ -72,6 +72,7 @@ dart run example/main.dart 你的课表.html --json
 |---|---|---|---|
 | `STANDARD_GRID_01` | 星期 × 节次矩阵表 | 表格几何 + `rowspan` | 课程名/教师/周次/教室 |
 | `ZHENGFANG_GRID_01` | 正方教务时间网格视图 | `td` 的 `id="星期-节次"` | 课程名/周次/地点/教师 |
+| `XAUAT_01` | 西建大 · 一列一天的 div 课表 | 所在**列**的序号 | 课程名/教室（括号子句写周次与节次） |
 | `GENERIC_MATRIX_01` | 启发式兜底 | 表格几何 | 按上面的顺序猜 |
 
 内置清单由 `buildBuiltinAdapters()` 给出，注册表 `SchoolAdapterRegistry.standard`
@@ -123,10 +124,13 @@ class MySchoolAdapter extends MatrixTableAdapter {
 | 单元格是 `课程：X` / `教师：Y` 标签式 | 换成 `LabeledLineLayout()` |
 | 单元格是单行 `X@Y@Z` | 换成 `DelimitedLineLayout(...)` |
 | 位置写在 `td` 的 `id` 里 | `CellPositionResolver.byId()` |
+| 一列一天，星期靠列序号 | `DaySectionResolver.fromAncestorIndex(...)` |
+| 周次/节次写成 `(1~16周)` `(1,2节)` 子句 | `ParenthesizedClauseLayout()` |
 | 位置按行列索引直算 | `CellPositionResolver.byIndex(...)` |
 | 行为星期、列为节次 | `orientation: MatrixOrientation.daysAreRows` |
 | 多一个「课程代码」字段打头 | `order` 里加 `CourseField.ignore` |
 | 周次用 `/` 分隔 | `WeekParser(extraRangeSeparators: ['/'])` |
+| 字段靠源码换行分隔 | `BlockListAdapter.keepSourceNewlines => true` |
 
 **结构**不同才需要新代码，而这时通常只要换一个基类：
 
@@ -134,6 +138,11 @@ class MySchoolAdapter extends MatrixTableAdapter {
   `DaySectionResolver`。
 - 数据留在页面 `<script>` 里 → 继承 `EmbeddedJsonAdapter`，给出
   `JsonPayloadLocator` 与 `mapPayload`。
+
+三所内置适配器之间的差别正好演示了这套配置面：`STANDARD_GRID_01` 用表格几何 +
+`rowspan` 定位置，`ZHENGFANG_GRID_01` 改从 `td` 的 `id` 读位置并调换字段顺序，
+`XAUAT_01` 换成 div 布局、按列序号定星期、用括号子句抽周次与节次——**都没有新写
+解析算法**，只是换了配置与基类。
 
 ## 周次与节次的写法支持
 

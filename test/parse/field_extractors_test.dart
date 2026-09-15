@@ -118,4 +118,18 @@ void main() {
       expect(Heuristics.defaultLabels['节次'], CourseField.sections);
     });
   });
+
+  group('中文楼栋房间号', () {
+    test('无「楼/室」关键词的中文房号也认得出', () {
+      expect(h.score('教一101', CourseField.position), 0.7);
+      expect(h.score('教二202', CourseField.position), 0.7);
+      expect(h.score('北101', CourseField.position), 0.7);
+    });
+
+    test('带数字的课程名不会被误判成地点', () {
+      expect(h.score('线性代数2', CourseField.position), 0);
+      expect(h.score('高等数学A', CourseField.position), 0);
+      expect(h.score('马克思主义基本原理', CourseField.position), 0);
+    });
+  });
 }

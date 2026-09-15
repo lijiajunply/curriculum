@@ -56,6 +56,13 @@ class Heuristics {
   /// 纯房间编号，例如 `A101`、`B-301`。
   static final RegExp positionBareCode = RegExp(r'^[A-Za-z]{0,3}-?\d{1,4}$');
 
+  /// 中文楼栋简称加房间号，例如 `教一101`、`主楼A301`、`西楼101`。
+  ///
+  /// 这类写法没有「楼/室」之类的关键词，靠 [positionWithKeyword] 认不出来，
+  /// 但它在课表里几乎只可能是地点。限定最多两个汉字前缀，免得把
+  /// `线性代数2` 这类带数字的课程名也算进来。
+  static final RegExp positionChineseRoom = RegExp(r'^[\u4e00-\u9fa5]{0,2}[A-Za-z]?\d{2,4}$');
+
   /// 中文姓名，允许 `张三,李四` 这样的多人。
   static final RegExp teacherName = RegExp(r'^[一-龥]{2,4}(?:\s*[,，、]\s*[一-龥]{2,4})*$');
 
@@ -126,6 +133,7 @@ class Heuristics {
       case CourseField.position:
         if (positionWithKeyword.hasMatch(t)) return 0.9;
         if (positionBareCode.hasMatch(t)) return 0.7;
+        if (positionChineseRoom.hasMatch(t)) return 0.7;
         return 0;
       case CourseField.teacher:
         if (!teacherName.hasMatch(t)) return 0;
@@ -137,7 +145,9 @@ class Heuristics {
         // 名称是最不具辨识度的字段：任何既不像时间、也不像地点、也不像人名的
         // 非空行都可能是它。
         if (weekWithUnit.hasMatch(t) || sectionWithUnit.hasMatch(t)) return 0;
-        if (positionWithKeyword.hasMatch(t) || positionBareCode.hasMatch(t)) {
+        if (positionWithKeyword.hasMatch(t) ||
+            positionBareCode.hasMatch(t) ||
+            positionChineseRoom.hasMatch(t)) {
           return 0;
         }
         if (score(t, CourseField.teacher) >= 0.6) return 0;

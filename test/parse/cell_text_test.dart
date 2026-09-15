@@ -101,4 +101,35 @@ void main() {
       expect(isBlankCell(<String>['N/A'], <String>['无']), isFalse);
     });
   });
+
+  group('keepSourceNewlines', () {
+    test('默认把源码换行折成空格', () {
+      expect(extractCellLines(cell('a\nb')), <String>['a b']);
+    });
+
+    test('开启后源码换行成为真正的换行', () {
+      expect(extractCellLines(cell('a\nb'), keepSourceNewlines: true), <String>['a', 'b']);
+      expect(extractCellLines(cell('高等数学\n教一101\n(1~16周)'), keepSourceNewlines: true), <String>[
+        '高等数学',
+        '教一101',
+        '(1~16周)',
+      ]);
+    });
+
+    test('制表符仍然算空格', () {
+      expect(extractCellLines(cell('a\tb'), keepSourceNewlines: true), <String>['a b']);
+    });
+
+    test('CRLF 也认', () {
+      expect(extractCellLines(cell('a\r\nb'), keepSourceNewlines: true), <String>['a', 'b']);
+    });
+
+    test('与 br 混用不产生空行', () {
+      expect(extractCellLines(cell('a\nb<br>c'), keepSourceNewlines: true), <String>[
+        'a',
+        'b',
+        'c',
+      ]);
+    });
+  });
 }

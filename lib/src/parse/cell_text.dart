@@ -75,6 +75,9 @@ const Set<String> _blockTags = <String>{
 /// 免得和结构性的换行混为一谈。
 final RegExp _sourceWhitespace = RegExp(r'[\r\n\t]');
 
+/// HTML 源码里的换行。
+final RegExp _sourceLineBreak = RegExp(r'\r\n|\r|\n');
+
 /// 行内连续两个及以上空格。
 final RegExp _wideGap = RegExp(' {2,}');
 
@@ -86,9 +89,17 @@ final RegExp _wideGap = RegExp(' {2,}');
 ///
 /// keepWideGaps 为 true 时，行内连续两个以上的空白会被替换成 kFieldSeparator，
 /// 调用方可用 splitFields 还原字段边界。
-List<String> extractCellLines(Element cell, {bool keepWideGaps = true}) {
+///
+/// keepSourceNewlines 为 true 时，HTML **源码里的换行**也被当作换行而非空格。
+/// 这是给服务端渲染、用源码换行分隔字段的老式页面准备的。默认 false——渲染时
+/// 源码换行只是一个空格，把它当换行会在多数页面上凭空多出许多行。
+List<String> extractCellLines(
+  Element cell, {
+  bool keepWideGaps = true,
+  bool keepSourceNewlines = false,
+}) {
   final buffer = StringBuffer();
-  _walk(cell, buffer);
+  _walk(cell, buffer, keepSourceNewlines);
   final out = <String>[];
   for (final raw in buffer.toString().split('\n')) {
     final line = _cleanLine(raw, keepWideGaps);
@@ -121,9 +132,13 @@ bool isBlankCell(Iterable<String> lines, [List<String> blankTokens = kDefaultBla
   return true;
 }
 
-void _walk(Node node, StringBuffer out) {
+void _walk(Node node, StringBuffer out, bool keepSourceNewlines) {
   if (node is Text) {
-    out.write(node.text.replaceAll(_sourceWhitespace, ' '));
+    out.write(
+      keepSourceNewlines
+          ? node.text.replaceAll(_sourceLineBreak, '\n').replaceAll('\t', ' ')
+          : node.text.replaceAll(_sourceWhitespace, ' '),
+    );
     return;
   }
   if (node is! Element) return; // 注释、DOCTYPE 等一律忽略。
@@ -136,7 +151,7 @@ void _walk(Node node, StringBuffer out) {
   final isBlock = _blockTags.contains(tag);
   if (isBlock) out.write('\n');
   for (final child in node.nodes) {
-    _walk(child, out);
+    _walk(child, out, keepSourceNewlines);
   }
   if (isBlock) out.write('\n');
 }

@@ -41,6 +41,12 @@ final RegExp _dayPartPrefix = RegExp('上午|下午|晚上|早上|早晨|中午|
 /// 需要剔除的节次单位后缀词（长的在前，避免 `节次` 被拆成 `次`）。
 final RegExp _sectionUnit = RegExp('小节|节课|节次|节');
 
+/// 节次字段外层的括号，例如 `(1,2节)`、`（3-4节）`。
+///
+/// 很多教务把周次与节次都写成括号子句，所以节次解析必须能吃下这层壳——
+/// 与周次解析的处理保持对称。
+final RegExp _brackets = RegExp(r'[()\[\]{}]');
+
 /// 混在节次字段里的星期标签，例如 `星期三第3-4节`、`周一第1,2节`。
 ///
 /// 只匹配「星期/周/礼拜 + 星期几」的组合，所以不会误伤 `1-16周` 里的周。
@@ -64,6 +70,7 @@ final RegExp _compactToken = RegExp(r'^\d{4,8}$');
 SectionRange? parseSections(String? raw, {int maxSection = 20}) {
   if (raw == null) return null;
   final cleaned = normalizeForParsing(raw)
+      .replaceAll(_brackets, '')
       .replaceAll(_dayLabelPrefix, '')
       .replaceAll(_dayPartPrefix, '')
       .replaceAll('第', '')
@@ -109,6 +116,7 @@ SectionRange? parseSections(String? raw, {int maxSection = 20}) {
 SectionRange? parseCompactSections(String? raw, {int maxSection = 20}) {
   if (raw == null) return null;
   final cleaned = normalizeForParsing(raw)
+      .replaceAll(_brackets, '')
       .replaceAll(_dayLabelPrefix, '')
       .replaceAll(_dayPartPrefix, '')
       .replaceAll('第', '')

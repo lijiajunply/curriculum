@@ -1,4 +1,5 @@
 import 'builtin/standard_grid_adapter.dart';
+import 'builtin/xauat_adapter.dart';
 import 'builtin/zhengfang_grid_adapter.dart';
 import 'general_matrix_adapter.dart';
 import 'school_adapter.dart';
@@ -10,6 +11,7 @@ import 'school_adapter.dart';
 List<SchoolAdapter> buildBuiltinAdapters() => const <SchoolAdapter>[
   StandardGridAdapter(),
   ZhengfangGridAdapter(),
+  XauatAdapter(),
   // 兜底适配器必须排在最后，且它的置信度被压到 0.1，只在无其它候选时生效。
   GeneralMatrixAdapter(),
 ];

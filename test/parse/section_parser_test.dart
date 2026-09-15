@@ -83,4 +83,17 @@ void main() {
       expect(const SectionRange(1, 2).toString(), '第1-2节');
     });
   });
+
+  group('括号子句', () {
+    test('节次外层带括号也能解析', () {
+      expect(parseSections('(1,2节)'), const SectionRange(1, 2));
+      expect(parseSections('（3-4节）'), const SectionRange(3, 4));
+      expect(parseSections('(1,2,3,4节)'), const SectionRange(1, 4));
+      expect(parseSections('(第3节)'), const SectionRange(3, 3));
+    });
+
+    test('紧凑写法带括号也能解析', () {
+      expect(parseCompactSections('(0102)'), const SectionRange(1, 2));
+    });
+  });
 }

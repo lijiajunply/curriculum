@@ -138,4 +138,86 @@ void main() {
     expect(adapter.canParse(fixture()), isTrue);
     expect(adapter.canParse('<html></html>'), isFalse);
   });
+
+  group('DaySectionResolver.fromAncestorIndex', () {
+    ParseContext ctx() => ParseContext(options: const ParseOptions());
+
+    const resolver = DaySectionResolver.fromAncestorIndex(ancestorSelector: '.columns.weekday');
+
+    Element columnAt(int index, {int total = 7, String? card}) {
+      final columns = StringBuffer();
+      for (var i = 0; i < total; i++) {
+        columns.write('<div class="columns weekday">');
+        if (i == index && card != null) columns.write(card);
+        columns.write('</div>');
+      }
+      return parseHtmlDocument(columns.toString()).querySelector('.card-view')!;
+    }
+
+    const card =
+        '<div class="card-view"><div class="card-content-info">'
+        '高等数学A\n教一101\n(1~16周)\n(3,4节)</div></div>';
+
+    test('星期来自列的序号，节次来自括号子句', () {
+      final position = resolver.resolve(columnAt(2, card: card), ctx());
+      expect(position!.day, 3);
+      expect(position.sections, const SectionRange(3, 4));
+    });
+
+    test('第一列是周一', () {
+      expect(resolver.resolve(columnAt(0, card: card), ctx())!.day, 1);
+    });
+
+    test('最后一列是周日', () {
+      expect(resolver.resolve(columnAt(6, card: card), ctx())!.day, 7);
+    });
+
+    test('列数超过 7 时返回 null', () {
+      expect(resolver.resolve(columnAt(7, total: 8, card: card), ctx()), isNull);
+    });
+
+    test('没有节次子句时返回 null', () {
+      final block = columnAt(
+        0,
+        card:
+            '<div class="card-view"><div class="card-content-info">'
+            '高等数学A\n教一101</div></div>',
+      );
+      expect(resolver.resolve(block, ctx()), isNull);
+    });
+
+    test('找不到匹配的祖先时返回 null', () {
+      final html =
+          '<div class="other"><div class="card-view">'
+          '<div class="card-content-info">高等数学\n(1,2节)</div></div></div>';
+      final block = parseHtmlDocument(html).querySelector('.card-view')!;
+      expect(resolver.resolve(block, ctx()), isNull);
+    });
+
+    test('周次子句不会被当成节次', () {
+      final block = columnAt(
+        0,
+        card:
+            '<div class="card-view"><div class="card-content-info">'
+            '高等数学A\n(1~16周)\n(3,4节)</div></div>',
+      );
+      // 只有 `(1~16周)` 时会因为找不到节次子句而返回 null。
+      final onlyWeeks = columnAt(
+        0,
+        card:
+            '<div class="card-view"><div class="card-content-info">'
+            '高等数学A\n(1~16周)</div></div>',
+      );
+      expect(resolver.resolve(block, ctx())!.sections, const SectionRange(3, 4));
+      expect(resolver.resolve(onlyWeeks, ctx()), isNull);
+    });
+  });
+
+  test('统计不重复计数', () {
+    final result = adapter.parse(fixture());
+    // 2 个课程块 + 没有空块 -> seen 恰好是 2。
+    expect(result.stats.cellsSeen, 2);
+    expect(result.stats.cellsParsed, 2);
+    expect(result.stats.coursesEmitted, 2);
+  });
 }

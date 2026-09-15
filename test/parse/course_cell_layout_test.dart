@@ -242,4 +242,68 @@ void main() {
       expect(layout.extract(<String>['随便一行']), isEmpty);
     });
   });
+
+  group('ParenthesizedClauseLayout', () {
+    const layout = ParenthesizedClauseLayout();
+
+    test('抽出周次与节次子句，其余按顺序填', () {
+      final records = layout.extract(<String>['高等数学A', '教一101', '(1~16周)', '(1,2节)']);
+      expect(records, hasLength(1));
+      final r = records.single;
+      expect(r.name, '高等数学A');
+      expect(r.position, '教一101');
+      expect(r.weeksRaw, '1~16周');
+      expect(r.sectionsRaw, '1,2节');
+    });
+
+    test('不含周/节的括号留在行里，课程名里的括号不被吃掉', () {
+      final records = layout.extract(<String>['数据结构(实验)', '信息楼机房4', '(2~16周)', '(5,6节)']);
+      expect(records.single.name, '数据结构(实验)');
+      expect(records.single.position, '信息楼机房4');
+    });
+
+    test('嵌套括号子句被完整保留', () {
+      final records = layout.extract(<String>['线性代数', '教二202', '(1~16周(单))', '(3,4节)']);
+      expect(records.single.weeksRaw, '1~16周(单)');
+      expect(records.single.sectionsRaw, '3,4节');
+    });
+
+    test('未识别的括号子句进 leftovers，不占用字段位', () {
+      final records = layout.extract(<String>['体育', '风雨操场', '(1~16周)', '(7,8节)', '(上课组:1)']);
+      expect(records.single.position, '风雨操场');
+      expect(records.single.leftovers, contains('(上课组:1)'));
+    });
+
+    test('skipLinePattern 丢掉不带括号的噪声行', () {
+      final noisy = ParenthesizedClauseLayout(skipLinePattern: RegExp('上课组|人数'));
+      final records = noisy.extract(<String>['体育', '上课组:1', '风雨操场', '(1~16周)', '(7,8节)']);
+      expect(records.single.name, '体育');
+      expect(records.single.position, '风雨操场');
+    });
+
+    test('挤成一行时按地点特征拆开', () {
+      final records = layout.extract(<String>['高等数学 教一101 (1~16周) (1,2节)']);
+      expect(records.single.name, '高等数学');
+      expect(records.single.position, '教一101');
+      expect(records.single.weeksRaw, '1~16周');
+    });
+
+    test('拆不开时保持原样', () {
+      final records = layout.extract(<String>['大学英语（视听说） (1~16周) (3,4节)']);
+      expect(records.single.name, '大学英语（视听说）');
+      expect(records.single.position, isNull);
+    });
+
+    test('全空返回零条记录', () {
+      expect(layout.extract(<String>['', '  ']), isEmpty);
+    });
+
+    test('只有子句、没有正文时会产出一条无课程名的记录', () {
+      // 这是刻意的：layout 只负责如实抽取，要不要留下交给上层的 missingName 判定。
+      final records = layout.extract(<String>['(1~16周)']);
+      expect(records, hasLength(1));
+      expect(records.single.name, isNull);
+      expect(records.single.weeksRaw, '1~16周');
+    });
+  });
 }

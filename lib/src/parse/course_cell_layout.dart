@@ -483,6 +483,120 @@ class DelimitedLineLayout extends CourseCellLayout {
   }
 }
 
+/// 括号子句布局：把 `(1~16周)`、`(1,2节)` 这类半角括号子句抽出来当字段，
+/// 剩下的文本按顺序填 [order]。
+///
+/// 这是「课程名 / 教室 / (周次) / (节次)」这类堆叠写法的通用解法，在国产教务里
+/// 很常见：结构化信息全在括号里，人读的部分在括号外。
+///
+/// 只消费**含「周」或「节」的子句**，其余括号原样留在行里——这样
+/// `程序设计基础(实验)` 这种课程名不会被误当子句吃掉。要不要丢弃
+/// `(上课组:1)` 这类噪声子句，交给 [skipLinePattern]。
+class ParenthesizedClauseLayout extends CourseCellLayout {
+  /// 创建括号子句布局。
+  const ParenthesizedClauseLayout({
+    this.order = const <CourseField>[CourseField.name, CourseField.position],
+    this.skipLinePattern,
+    this.sectionSplit = SectionSplit.explicitOnly,
+    this.heuristics = const Heuristics(),
+  });
+
+  /// 括号之外的行按什么顺序填。用 [CourseField.ignore] 占位可跳过。
+  final List<CourseField> order;
+
+  /// 匹配则丢弃该行（在括号子句被摘掉**之后**判断）。
+  final RegExp? skipLinePattern;
+
+  @override
+  final SectionSplit sectionSplit;
+
+  /// 兜底分类器，用于把「一行里挤了课程名和教室」的情况拆开。
+  final Heuristics heuristics;
+
+  @override
+  String get debugName => 'ParenthesizedClauseLayout(${order.map((f) => f.name).join('/')})';
+
+  @override
+  List<RawCourseRecord> extract(List<String> lines) {
+    if (lines.isEmpty) return const <RawCourseRecord>[];
+
+    final clauses = <String>[];
+    var free = <String>[];
+
+    for (final line in lines) {
+      final removals = <(int, int)>[];
+      for (final match in _clause.allMatches(line)) {
+        final inner = match.group(1)?.trim() ?? '';
+        if (inner.isEmpty) continue;
+        // 含「周」的优先判为周次；否则含「节」或 `~` 的判为节次；其余留在行里。
+        if (inner.contains('周') || inner.contains('节') || inner.contains('~')) {
+          clauses.add(inner);
+          removals.add((match.start, match.end));
+        }
+      }
+
+      var rest = line;
+      for (final (start, end) in removals.reversed) {
+        rest = rest.replaceRange(start, end, ' ');
+      }
+      rest = rest.replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (rest.isEmpty) continue;
+      if (skipLinePattern?.hasMatch(rest) ?? false) continue;
+      free.add(rest);
+    }
+
+    // 源码换行被折叠时，课程名与教室会挤在同一行，这里尝试拆开。
+    if (free.length == 1 && order.length > 1) {
+      free = _splitSingleLine(free.single);
+    }
+
+    final record = RawCourseRecord();
+    for (var i = 0; i < free.length; i++) {
+      if (i >= order.length) {
+        record.leftovers.add(free[i]);
+        continue;
+      }
+      final field = order[i];
+      if (field == CourseField.ignore) {
+        record.leftovers.add(free[i]);
+        continue;
+      }
+      record.write(field, free[i]);
+    }
+
+    for (final clause in clauses) {
+      if (clause.contains('周')) {
+        record.weeksRaw ??= clause;
+      } else if (clause.contains('节') || clause.contains('~')) {
+        record.sectionsRaw ??= clause;
+      } else {
+        record.leftovers.add('($clause)');
+      }
+    }
+
+    return record.isEmpty ? const <RawCourseRecord>[] : <RawCourseRecord>[record];
+  }
+
+  /// 把 `高等数学 教一101` 拆成两行。
+  ///
+  /// 只在最后一段确实**像上课地点**时才拆，否则原样返回——课程名里带空格的情况
+  /// 虽然少见，但误拆的代价比不拆大。
+  List<String> _splitSingleLine(String line) {
+    final parts = line.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.length < 2) return <String>[line];
+    final last = parts.last;
+    if (heuristics.score(last, CourseField.position) < 0.5) {
+      return <String>[line];
+    }
+    return <String>[parts.sublist(0, parts.length - 1).join(' '), last];
+  }
+}
+
+/// 匹配半角括号子句，允许一层嵌套，例如 `(1~16周(单))`。
+///
+/// 只认半角括号：课程名里的 `（视听说）` 是全角，不该被当成子句。
+final RegExp _clause = RegExp(r'\(([^()]*(?:\([^()]*\)[^()]*)*)\)');
+
 /// 依次尝试多个布局，取第一个产出非空结果者。
 class CompositeLayout extends CourseCellLayout {
   /// 创建组合布局。

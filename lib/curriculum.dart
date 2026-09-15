@@ -33,6 +33,7 @@ export 'src/adapter/adapter_registry.dart';
 export 'src/adapter/block_list_adapter.dart';
 export 'src/adapter/embedded_json_adapter.dart';
 export 'src/adapter/builtin/standard_grid_adapter.dart';
+export 'src/adapter/builtin/xauat_adapter.dart';
 export 'src/adapter/builtin/zhengfang_grid_adapter.dart';
 export 'src/adapter/general_matrix_adapter.dart';
 export 'src/adapter/builtin_adapters.dart';

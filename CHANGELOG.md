@@ -29,6 +29,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 内置适配器 `STANDARD_GRID_01`、`ZHENGFANG_GRID_01`、`GENERIC_MATRIX_01`。
 - 结构化诊断 `ParseWarning` / `ParseStats` / `diagnosticReport`；
   `parse` 永不因内容问题抛异常。
+- `extractCellLines` 的 `keepSourceNewlines`：把 HTML 源码换行当作换行，
+  用于服务端渲染、靠源码换行分隔字段的页面。
+- `parseSections` 支持外层括号（`(1,2节)`），与周次解析的处理对称。
+- `ParenthesizedClauseLayout`：抽取 `(1~16周)`、`(1,2节)` 这类括号子句，
+  支持一层嵌套（`(1~16周(单))`）。
+- `DaySectionResolver.fromAncestorIndex`：星期由祖先元素的列序号决定，
+  用于「一列一天」的 div 课表。
+- `BlockListAdapter` 的 `contentSelector` 与 `keepSourceNewlines`。
+- 位置启发式新增中文楼栋房号（`教一101`、`北101`）。
+- 内置适配器 `XAUAT_01`（西安建筑科技大学），含两个端到端样本。
 - fixture 自动发现工具 `registerFixtureSuites()`。
 
 [Unreleased]: https://github.com/lijiajunply/curriculum/compare/v0.1.0...HEAD

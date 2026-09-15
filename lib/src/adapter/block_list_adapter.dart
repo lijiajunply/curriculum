@@ -40,6 +40,17 @@ abstract class DaySectionResolver {
   const factory DaySectionResolver.fromDescendant({required String selector, int maxSection}) =
       _FromDescendant;
 
+  /// 星期由**祖先元素的列序号**决定，节次从块内的括号子句读。
+  ///
+  /// 这是「一列一天」的 div 课表（每列是一个星期几，课程卡片堆在列里）的标准解法：
+  /// 卡片自身不带星期信息，位置完全由它在第几列决定。
+  const factory DaySectionResolver.fromAncestorIndex({
+    required String ancestorSelector,
+    int firstDay,
+    int maxSection,
+    bool keepSourceNewlines,
+  }) = _FromAncestorIndex;
+
   /// 从绝对定位的 `style` 推：`top`/`height` 定节次，`left`/`width` 定星期列。
   const factory DaySectionResolver.fromStyle({
     double rowHeight,
@@ -135,6 +146,87 @@ class _FromDescendant implements DaySectionResolver {
   }
 }
 
+/// 只支持标签选择器与类选择器（`.a.b` / `div`）。
+///
+/// 刻意不引入完整的 CSS 选择器实现：位置解析只需要认出「哪一列」，类名足够，
+/// 实现越简单越不容易成为 bug 来源。
+bool _matchesSimpleSelector(Element element, String selector) {
+  final trimmed = selector.trim();
+  if (trimmed.isEmpty) return false;
+  if (!trimmed.startsWith('.')) return element.localName == trimmed;
+  final classes = (elementAttribute(element, 'class') ?? '')
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toSet();
+  for (final part in trimmed.split('.')) {
+    if (part.isEmpty) continue;
+    if (!classes.contains(part)) return false;
+  }
+  return true;
+}
+
+/// 匹配形如 `(1,2节)` 的括号子句，允许一层嵌套（`(1~16周(单))`）。
+final RegExp _clausePattern = RegExp(r'\(([^()]*(?:\([^()]*\)[^()]*)*)\)');
+
+/// 从一段文本里找出节次子句。
+String? _sectionClauseIn(String text) {
+  for (final match in _clausePattern.allMatches(text)) {
+    final inner = match.group(1)?.trim() ?? '';
+    // 含「周」的子句是周次而不是节次——与拾光上游适配脚本的判定一致。
+    if (inner.contains('周')) continue;
+    if (inner.contains('节') || inner.contains('~')) return inner;
+  }
+  return null;
+}
+
+class _FromAncestorIndex implements DaySectionResolver {
+  const _FromAncestorIndex({
+    required this.ancestorSelector,
+    this.firstDay = 1,
+    this.maxSection = 20,
+    this.keepSourceNewlines = true,
+  });
+
+  final String ancestorSelector;
+  final int firstDay;
+  final int maxSection;
+  final bool keepSourceNewlines;
+
+  @override
+  DaySectionPosition? resolve(Element block, ParseContext ctx) {
+    Element? ancestor;
+    for (var node = block.parent; node != null; node = node.parent) {
+      if (_matchesSimpleSelector(node, ancestorSelector)) {
+        ancestor = node;
+        break;
+      }
+    }
+    if (ancestor == null) return null;
+
+    final parent = ancestor.parent;
+    final siblings = parent == null
+        ? <Element>[ancestor]
+        : parent.children.where((e) => _matchesSimpleSelector(e, ancestorSelector)).toList();
+    final index = siblings.indexOf(ancestor);
+    if (index < 0) return null;
+
+    final day = firstDay + index;
+    if (day < 1 || day > 7) return null;
+
+    final lines = extractCellLines(
+      block,
+      keepWideGaps: false,
+      keepSourceNewlines: keepSourceNewlines,
+    );
+    final clause = _sectionClauseIn(lines.join(' '));
+    if (clause == null) return null;
+    final sections = parseSections(clause, maxSection: maxSection);
+    if (sections == null) return null;
+
+    return DaySectionPosition(day: day, sections: sections);
+  }
+}
+
 class _FromStyle implements DaySectionResolver {
   const _FromStyle({
     this.rowHeight = 50,
@@ -199,6 +291,17 @@ abstract class BlockListAdapter extends SchoolAdapter {
   /// 周次缺失时的展开上界。
   int get defaultMaxWeek => 20;
 
+  /// 只在块的某个后代里抽文本；为 null 时用整个块的文本。
+  ///
+  /// 课程卡片常有编号、学分、操作按钮之类的附属元素，它们会混进文本行里，
+  /// 把「课程名」挤到后面去。用本属性把范围收窄到真正的内容区。
+  String? get contentSelector => null;
+
+  /// 是否把 HTML 源码里的换行当作换行。
+  ///
+  /// 服务端渲染、用源码换行分隔字段的老式页面需要开启，见 `extractCellLines`。
+  bool get keepSourceNewlines => false;
+
   @override
   CourseImportResult parseDocument(
     Document document, {
@@ -208,9 +311,13 @@ abstract class BlockListAdapter extends SchoolAdapter {
     final sources = <CourseSource>[];
 
     for (final block in document.querySelectorAll(blockSelector)) {
-      ctx.recordCellSeen();
-      final lines = extractCellLines(block);
+      // 交给 parseCourseSources 的块由它自己计数，这里只统计被本层丢掉的块，
+      // 否则同一个块会被计两次。
+      final selector = contentSelector;
+      final content = selector == null ? block : (block.querySelector(selector) ?? block);
+      final lines = extractCellLines(content, keepSourceNewlines: keepSourceNewlines);
       if (isBlankCell(lines)) {
+        ctx.recordCellSeen();
         ctx.recordCellSkipped();
         continue;
       }
@@ -222,6 +329,7 @@ abstract class BlockListAdapter extends SchoolAdapter {
           location: elementPath(block),
           rawText: lines.join(' / '),
         );
+        ctx.recordCellSeen();
         ctx.recordCellSkipped();
         continue;
       }
