@@ -1,0 +1,40 @@
+{
+  "courses": [
+    {
+      "name": "高等数学A",
+      "teacher": "张伟",
+      "position": "凌云楼101",
+      "day": 1,
+      "startSection": 1,
+      "endSection": 1,
+      "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+      "isCustomTime": false,
+      "customStartTime": null,
+      "customEndTime": null
+    },
+    {
+      "name": "线性代数",
+      "teacher": "陈晨",
+      "position": "凌云楼208",
+      "day": 2,
+      "startSection": 2,
+      "endSection": 2,
+      "weeks": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+      "isCustomTime": false,
+      "customStartTime": null,
+      "customEndTime": null
+    },
+    {
+      "name": "大学英语（视听说）",
+      "teacher": "李娜",
+      "position": "外语楼203",
+      "day": 3,
+      "startSection": 1,
+      "endSection": 2,
+      "weeks": [1, 2, 3, 4, 5, 6, 7, 8],
+      "isCustomTime": false,
+      "customStartTime": null,
+      "customEndTime": null
+    }
+  ]
+}

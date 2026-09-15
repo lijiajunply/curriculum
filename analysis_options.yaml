@@ -1,14 +1,21 @@
-include: package:flutter_lints/flutter.yaml
+include: package:lints/recommended.yaml
+
+formatter:
+  page_width: 100
 
 analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    todo: ignore
   exclude:
     - build/**
-    - android/**
-    - ios/**
-    - web/**
-    - windows/**
-    - macos/**
-    - linux/**
 
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+linter:
+  rules:
+    - public_member_api_docs
+    - prefer_final_locals
+    - unawaited_futures
+    - avoid_dynamic_calls

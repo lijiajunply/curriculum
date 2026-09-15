@@ -1,3 +1,35 @@
-## 0.0.1
+# Changelog
 
-* TODO: Describe initial release.
+All notable changes to this project are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1.0] - 2026-09-15
+
+### Added
+
+- `Course` / `CourseConfig` / `TimeSlot` / `CourseImportResult`，手写 JSON
+  编解码，字段与拾光课程表的 `CourseImportExport` 一一对应。
+- `TableGrid`：完整的 `rowspan` / `colspan` 归一化，含跨行宿主追踪、参差行补齐、
+  `rowspan="0"`、跨度钳制、转置。
+- `extractCellLines`：基于 DOM 走查的分行与清洗（`<br>`、块级嵌套、`&nbsp;`、
+  宽间隔字段分隔）。
+- `parseWeeks`：区间、列表、单双周、全周、全角数字、六种破折号、排除与间隔子句；
+  逐子句独立处理单双周。
+- `parseSections`：含紧凑写法 `0102`、星期标签剥离、行索引兜底。
+- `parseTimeSlots`：从表头抽取作息时间。
+- `CourseCellLayout` 家族（定序 / 标签 / 分隔符 / 组合），带字段纠偏与启发式补漏。
+- `SchoolAdapter` + `SchoolAdapterRegistry`：标记探测、置信度排序、`parseAuto`
+  （无候选时返回带诊断的空结果而非抛异常）。
+- `MatrixTableAdapter`（矩阵基类，含 `CellPositionResolver` 三种位置来源）、
+  `BlockListAdapter`（div 块）、`EmbeddedJsonAdapter`（内嵌 JSON，含括号配对扫描）。
+- 内置适配器 `STANDARD_GRID_01`、`ZHENGFANG_GRID_01`、`GENERIC_MATRIX_01`。
+- 结构化诊断 `ParseWarning` / `ParseStats` / `diagnosticReport`；
+  `parse` 永不因内容问题抛异常。
+- fixture 自动发现工具 `registerFixtureSuites()`。
+
+[Unreleased]: https://github.com/lijiajunply/curriculum/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/lijiajunply/curriculum/releases/tag/v0.1.0
